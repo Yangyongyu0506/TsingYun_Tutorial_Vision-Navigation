@@ -41,6 +41,16 @@ class Renderer:
     C_SIDEBAR_BG = ( 26,  26,  38)
     C_SEP        = ( 60,  60,  80)
 
+    @staticmethod
+    def _make_font(size: int, bold: bool = False) -> pygame.font.Font:
+        try:
+            return pygame.font.SysFont("consolas", size, bold=bold)
+        except TypeError:
+            font = pygame.font.Font(None, size)
+            if bold:
+                font.set_bold(True)
+            return font
+
     def __init__(
         self,
         task: Task,
@@ -64,9 +74,9 @@ class Renderer:
         self.screen = pygame.display.set_mode((self.win_w, self.win_h))
         pygame.display.set_caption("2D Navigation Simulator")
 
-        self._font    = pygame.font.SysFont("consolas", 13)
-        self._font_md = pygame.font.SysFont("consolas", 15, bold=True)
-        self._font_lg = pygame.font.SysFont("consolas", 18, bold=True)
+        self._font    = self._make_font(13)
+        self._font_md = self._make_font(15, bold=True)
+        self._font_lg = self._make_font(18, bold=True)
 
         self._map_surf: Optional[pygame.Surface] = None
         self._map_surf_id: Optional[int] = None
