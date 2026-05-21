@@ -6,21 +6,21 @@
 
 ## 如何启动
 
-可以使用 Conda 创建环境：
+可以使用 uv 创建环境：
 
 ```bash
-conda create -n vision-nav python=3.11
-conda activate vision-nav
-pip install -r requirements.txt
+uv venv -p 3.11
+source .venv/bin/activate
+uv pip install -r requirements.txt
 ```
 
 启动：
 
 ```bash
 # Level 1：纯静态地图
-python navigation/main.py --level 1 --record level1.mp4
+uv run python navigation/main.py --level 1 --record level1.mp4
 # Level 2：加入随机移动的动态障碍物 + Lidar 感知
-python navigation/main.py --level 2 --record level2.mp4
+uv run python navigation/main.py --level 2 --record level2.mp4
 ```
 
 - `--record` 参数会把仿真过程录成视频，方便调参和最终提交。
