@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Tuple
 
 import numpy as np
-
+from scipy.ndimage import distance_transform_edt
 
 def compute_costmap(
     static_map: np.ndarray,
@@ -43,7 +43,11 @@ def compute_costmap(
       longer route, wasting time.
     """
     # TODO: Implement a function to compute a costmap from the static map by inflating obstacles.
-    return static_map.copy()
+    dist_array = distance_transform_edt(static_map == 0)
+    cost_array = 255 * np.exp(-dist_array / 5.0)  # Example: exponential decay with inflation radius ~2.0
+    cost_array[dist_array >= 5.0] = 0.  # Set cost to 0 beyond inflation radius of 5.0
+
+    return cost_array.astype(np.uint8)
 
 
 def update_local_costmap(

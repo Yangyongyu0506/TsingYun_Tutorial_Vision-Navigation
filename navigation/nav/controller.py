@@ -55,4 +55,18 @@ def local_plan(
       (such as MPPI) can be tried.
     """
     # TODO: Implement Pure Pursuit controller.
-    return 0.0, 0.0
+    # Pure path pursuit
+    patharray = np.array(global_path)
+    if len(patharray) == 0:
+        return 0.0, 0.0
+    dists = np.linalg.norm(patharray - current_pose, axis=1)
+    closest_idx = np.argmin(dists)
+    look_ahead_step = 2
+    look_ahead_idx = min(closest_idx + look_ahead_step, len(patharray) - 1)
+    look_ahead_point = patharray[look_ahead_idx]
+    direction = look_ahead_point - np.array(current_pose)
+    next_dist = np.linalg.norm(look_ahead_point - np.array(current_pose))
+    if np.linalg.norm(direction) > 0:
+        direction = direction / np.linalg.norm(direction)
+    cmd_vx, cmd_vy = direction * next_dist * max_speed / (look_ahead_step + 1)  # Scale speed based on distance to look-ahead
+    return cmd_vx, cmd_vy
