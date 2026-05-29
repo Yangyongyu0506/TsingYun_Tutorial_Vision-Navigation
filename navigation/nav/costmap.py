@@ -7,6 +7,8 @@ from typing import Tuple
 import numpy as np
 from scipy.ndimage import distance_transform_edt
 
+_STATIC_CACHE = {"map_id": None, "costmap": None}
+
 def compute_costmap(
     static_map: np.ndarray,
 ) -> np.ndarray:
@@ -43,10 +45,18 @@ def compute_costmap(
       longer route, wasting time.
     """
     # TODO: Implement a function to compute a costmap from the static map by inflating obstacles.
+    inflation_radius = 5.0
+    decay_radius = inflation_radius / 2.0
     dist_array = distance_transform_edt(static_map == 0)
-    cost_array = 255 * np.exp(-dist_array / 5.0)  # Example: exponential decay with inflation radius ~2.0
-    cost_array[dist_array >= 5.0] = 0.  # Set cost to 0 beyond inflation radius of 5.0
 
+    cost_array = np.zeros_like(dist_array, dtype=np.float32)
+    cost_array[static_map != 0] = 255.0
+
+    mask = (static_map == 0) & (dist_array <= inflation_radius)
+    if np.any(mask):
+        cost_array[mask] = 254.0 * np.exp(-dist_array[mask] / inflation_radius)
+
+    cost_array = np.clip(cost_array, 0.0, 255.0)
     return cost_array.astype(np.uint8)
 
 
@@ -97,4 +107,47 @@ def update_local_costmap(
       re-inflating the same area.
     """
     # TODO: Implement a function to update the global costmap with a local dynamic layer based on the lidar scan.
-    return static_map.copy()
+    global _STATIC_CACHE
+    map_id = id(static_map)
+    if _STATIC_CACHE["map_id"] != map_id:
+        _STATIC_CACHE["map_id"] = map_id
+        _STATIC_CACHE["costmap"] = compute_costmap(static_map)
+
+    base_costmap = _STATIC_CACHE["costmap"]
+    costmap = base_costmap.copy()
+
+    if lidar_scan is None or lidar_num_rays <= 0:
+        return costmap
+
+    rows, cols = static_map.shape
+    x0, y0 = robot_pos
+    dyn_mask = np.zeros_like(static_map, dtype=bool)
+
+    angles = np.linspace(0.0, 2.0 * np.pi, lidar_num_rays, endpoint=False)
+    for i, dist in enumerate(lidar_scan):
+        if dist >= lidar_range:
+            continue
+        hit_x = x0 + float(dist) * np.cos(angles[i])
+        hit_y = y0 + float(dist) * np.sin(angles[i])
+        r = int(hit_y)
+        c = int(hit_x)
+        if r < 0 or r >= rows or c < 0 or c >= cols:
+            continue
+        if static_map[r, c] != 0:
+            continue
+        dyn_mask[r, c] = True
+
+    if not np.any(dyn_mask):
+        return costmap
+
+    inflation_radius = 3.0
+    decay_radius = inflation_radius / 2.0
+    dist_array = distance_transform_edt(~dyn_mask)
+    dyn_cost = np.zeros_like(dist_array, dtype=np.float32)
+    mask = dist_array <= inflation_radius
+    if np.any(mask):
+        dyn_cost[mask] = 254.0 * np.exp(-dist_array[mask] / decay_radius)
+    dyn_cost[dyn_mask] = 255.0
+
+    merged = np.maximum(costmap, dyn_cost)
+    return merged.astype(np.uint8)
